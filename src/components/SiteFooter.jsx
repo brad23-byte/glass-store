@@ -15,9 +15,9 @@ export default function SiteFooter({ storeName, tagline, email, demo }) {
         </div>
         <div className="mt-8 flex flex-col items-start justify-between gap-3 border-t border-tint/15 pt-6 text-sm text-muted sm:flex-row sm:items-center">
           <p><b className="text-ink">{storeName}</b> · {tagline}</p>
-          <div className="flex gap-4"><Link href="/shop" className="hover:text-ink">Shop</Link><Link href="/account" className="hover:text-ink">My orders</Link><Link href="/login" className="hover:text-ink">Sign in</Link></div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1"><Link href="/shop" className="hover:text-ink">Shop</Link><Link href="/account" className="hover:text-ink">My orders</Link><Link href="/login" className="hover:text-ink">Sign in</Link><Link href="/terms" className="hover:text-ink">Terms</Link><Link href="/privacy" className="hover:text-ink">Privacy</Link><Link href="/shipping" className="hover:text-ink">Shipping</Link><Link href="/returns" className="hover:text-ink">Returns</Link></div>
         </div>
-        {demo && <p className="mt-4 rounded-2xl bg-warn/10 px-4 py-2 text-xs text-warn">Demo store: products are sample data and payments run in test mode. Nothing real is charged or shipped.</p>}
+        {demo && <p className="mt-4 rounded-2xl bg-warn/10 px-4 py-2 text-xs text-warn">Student project: payments run in test mode. Nothing real is charged or shipped.</p>}
       </div>
     </footer>
   );
