@@ -8,7 +8,7 @@ export async function POST(req) {
   const { value, error } = cleanCoupon(await readJson(req));
   if (error) return bad(error);
   try {
-    getDb().prepare('INSERT INTO coupons (code, kind, value, min_subtotal, max_uses, expires_at, active) VALUES (@code,@kind,@value,@min_subtotal,@max_uses,@expires_at,@active)').run(value);
+    await getDb().prepare('INSERT INTO coupons (code, kind, value, min_subtotal, max_uses, expires_at, active) VALUES (@code,@kind,@value,@min_subtotal,@max_uses,@expires_at,@active)').run(value);
   } catch { return bad('That code already exists', 409); }
   return ok({ ok: true }, 201);
 }

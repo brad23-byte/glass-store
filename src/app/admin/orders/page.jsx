@@ -10,13 +10,13 @@ export const dynamic = 'force-dynamic';
 
 const STATUSES = ['pending_payment', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
 
-export default function AdminOrders({ searchParams }) {
-  const s = getSettings();
+export default async function AdminOrders({ searchParams }) {
+  const s = await getSettings();
   const status = String(searchParams.status || '');
   const pay = String(searchParams.pay || '');
   const q = String(searchParams.q || '').slice(0, 60);
   const page = Math.max(1, Number(searchParams.page) || 1);
-  const { items, total, pages } = listOrdersAdmin({ status, pay, q, page });
+  const { items, total, pages } = await listOrdersAdmin({ status, pay, q, page });
   const href = (over) => { const p = new URLSearchParams({ status, pay, q, ...over }); for (const [k, v] of [...p]) if (!v) p.delete(k); const str = p.toString(); return `/admin/orders${str ? `?${str}` : ''}`; };
   const payTone = { paid: 'bg-ok/15 text-ok', cod: 'bg-accent2/15 text-accent2', unpaid: 'bg-warn/15 text-warn', failed: 'bg-danger/15 text-danger', refunded: 'bg-muted/20 text-ink2' };
 

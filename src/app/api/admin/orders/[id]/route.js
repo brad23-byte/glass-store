@@ -7,7 +7,7 @@ export async function PATCH(req, { params }) {
   if (!a) return bad('Admin access needed', 403);
   const b = await readJson(req);
   try {
-    updateOrderStatus(Number(params.id), { status: b.status, tracking_number: b.tracking_number, tracking_url: b.tracking_url, note: b.note }, a.name);
+    await updateOrderStatus(Number(params.id), { status: b.status, tracking_number: b.tracking_number, tracking_url: b.tracking_url, note: b.note }, a.name);
     return ok({ ok: true });
   } catch (e) {
     return bad(e instanceof UserError ? e.message : 'Could not update the order', e instanceof UserError ? 409 : 500);

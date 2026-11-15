@@ -8,9 +8,9 @@ import { fmt } from '@/lib/money';
 
 export const dynamic = 'force-dynamic';
 
-export default function AdminHome() {
-  const st = adminStats();
-  const s = getSettings();
+export default async function AdminHome() {
+  const st = await adminStats();
+  const s = await getSettings();
   const sym = s.currency_symbol;
   const cards = [
     ['Total revenue', fmt(st.revenue.v, sym), `${st.revenue.n} paid orders`, IndianRupee, 'from-accent to-accent2'],

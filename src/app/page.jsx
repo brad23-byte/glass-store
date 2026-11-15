@@ -10,12 +10,12 @@ export const dynamic = 'force-dynamic';
 
 const CAT_EMOJI = { Audio: '🎧', Wearables: '⌚', 'Smart Home': '💡', Kitchen: '☕', Fitness: '🧘', Travel: '🧳', 'Desk & Work': '💻' };
 
-export default function Home() {
-  const s = getSettings();
-  const hero = featured(3);
-  const picks = featured(8);
-  const fresh = listProducts({ sort: 'newest', perPage: 4 }).items;
-  const cats = listCategories();
+export default async function Home() {
+  const s = await getSettings();
+  const hero = await featured(3);
+  const picks = await featured(8);
+  const fresh = (await listProducts({ sort: 'newest', perPage: 4 })).items;
+  const cats = await listCategories();
 
   return (
     <div className="mx-auto max-w-6xl px-3 pt-8 sm:px-5 sm:pt-14">

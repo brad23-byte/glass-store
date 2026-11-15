@@ -9,12 +9,12 @@ export async function POST(req) {
   const b = await readJson(req);
   const cust = validateCheckout(b);
   if (cust.error) return bad(cust.error);
-  const methods = paymentMethods(getSettings());
+  const methods = paymentMethods(await getSettings());
   const method = String(b.method || '');
   if (!['cod', 'razorpay', 'demo'].includes(method) || !methods[method]) return bad('Choose an available payment method');
   const session = await getSession();
   try {
-    const o = createOrder({ items: b.items, coupon: b.coupon ? String(b.coupon) : '', method, customer: cust.value, userId: session?.id });
+    const o = await createOrder({ items: b.items, coupon: b.coupon ? String(b.coupon) : '', method, customer: cust.value, userId: session?.id });
     return ok(o, 201);
   } catch (e) {
     if (e instanceof UserError) return bad(e.message, 409);

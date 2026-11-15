@@ -8,8 +8,8 @@ import SortSelect from '@/components/SortSelect';
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Shop' };
 
-export default function ShopPage({ searchParams }) {
-  const s = getSettings();
+export default async function ShopPage({ searchParams }) {
+  const s = await getSettings();
   const q = String(searchParams.q || '').slice(0, 60);
   const category = String(searchParams.category || '');
   const sort = String(searchParams.sort || 'featured');
@@ -17,8 +17,8 @@ export default function ShopPage({ searchParams }) {
   const max = Math.max(0, Number(searchParams.max) || 0);
   const inStock = searchParams.stock === '1';
   const page = Math.max(1, Number(searchParams.page) || 1);
-  const { items, total, pages } = listProducts({ q, category, sort, min, max, inStock, page });
-  const cats = listCategories();
+  const { items, total, pages } = await listProducts({ q, category, sort, min, max, inStock, page });
+  const cats = await listCategories();
 
   const href = (over) => {
     const p = new URLSearchParams();

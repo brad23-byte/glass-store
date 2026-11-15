@@ -11,7 +11,7 @@ export async function POST(req, { params }) {
     if (b.mode === 'manual') {
       const ref = String(b.ref || '').trim();
       if (!ref) return bad('Enter the supplier order reference');
-      recordManualSupplierOrder(orderId, supplierId, ref);
+      await recordManualSupplierOrder(orderId, supplierId, ref);
       return ok({ ok: true, ref });
     }
     return ok({ ok: true, ...(await forwardToSupplier(orderId, supplierId)) });

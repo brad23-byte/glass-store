@@ -10,7 +10,7 @@ import ProductCard from '@/components/ProductCard';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }) {
-  const p = getProductBySlug(params.slug);
+  const p = await getProductBySlug(params.slug);
   return p ? { title: p.name, description: p.short_desc } : { title: 'Not found' };
 }
 
@@ -20,15 +20,15 @@ function eta() {
 }
 
 export default async function ProductPage({ params }) {
-  const raw = getProductBySlug(params.slug);
+  const raw = await getProductBySlug(params.slug);
   if (!raw) notFound();
-  const s = getSettings();
+  const s = await getSettings();
   const session = await getSession();
   const p = publicProduct(raw);
-  const reviews = getReviews(p.id);
-  const canReview = !!session && hasPurchased(session.id, p.id);
-  const mine = session ? getDb().prepare('SELECT rating, title, body FROM reviews WHERE product_id = ? AND user_id = ?').get(p.id, session.id) : null;
-  const rel = related(p, 4);
+  const reviews = await getReviews(p.id);
+  const canReview = !!session && await hasPurchased(session.id, p.id);
+  const mine = session ? await getDb().prepare('SELECT rating, title, body FROM reviews WHERE product_id = ? AND user_id = ?').get(p.id, session.id) : null;
+  const rel = await related(p, 4);
   const ld = {
     '@context': 'https://schema.org', '@type': 'Product', name: p.name, description: p.short_desc, sku: p.sku, brand: p.brand ? { '@type': 'Brand', name: p.brand } : undefined,
     offers: { '@type': 'Offer', priceCurrency: 'INR', price: (p.price / 100).toFixed(2), availability: p.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock' },

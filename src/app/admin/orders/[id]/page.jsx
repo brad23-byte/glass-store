@@ -11,16 +11,16 @@ import { fmt } from '@/lib/money';
 
 export const dynamic = 'force-dynamic';
 
-export default function AdminOrder({ params }) {
-  const o = getOrder(Number(params.id));
+export default async function AdminOrder({ params }) {
+  const o = await getOrder(Number(params.id));
   if (!o) notFound();
-  const sym = getSettings().currency_symbol;
+  const sym = (await getSettings()).currency_symbol;
   const a = o.ship_address;
   const sup = new Map();
   for (const i of o.items) {
     if (!i.supplier_id) continue;
     if (!sup.has(i.supplier_id)) {
-      const s = getDb().prepare('SELECT id, name, order_url FROM suppliers WHERE id = ?').get(i.supplier_id);
+      const s = await getDb().prepare('SELECT id, name, order_url FROM suppliers WHERE id = ?').get(i.supplier_id);
       sup.set(i.supplier_id, { id: i.supplier_id, name: s?.name || i.supplier_name || 'Supplier', canForward: !!s?.order_url, items: [], pending: 0 });
     }
     const g = sup.get(i.supplier_id);

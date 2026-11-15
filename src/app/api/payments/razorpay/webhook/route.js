@@ -11,13 +11,13 @@ export async function POST(req) {
   try { ev = JSON.parse(raw); } catch { return bad('Bad payload', 400); }
   const pay = ev?.payload?.payment?.entity;
   if (!pay?.order_id) return ok({ ignored: true });
-  const o = getDb().prepare('SELECT * FROM orders WHERE provider_order = ?').get(pay.order_id);
+  const o = await getDb().prepare('SELECT * FROM orders WHERE provider_order = ?').get(pay.order_id);
   if (!o) return ok({ ignored: true });
   if (ev.event === 'payment.captured' || ev.event === 'order.paid') {
     if (Number(pay.amount) !== o.total) return bad('Amount mismatch', 400);
-    markPaid(o.id, { method: 'razorpay', ref: String(pay.id).slice(0, 60) });
+    await markPaid(o.id, { method: 'razorpay', ref: String(pay.id).slice(0, 60) });
   } else if (ev.event === 'payment.failed') {
-    markPaymentFailed(o.id, String(pay.error_description || '').slice(0, 120));
+    await markPaymentFailed(o.id, String(pay.error_description || '').slice(0, 120));
   }
   return ok({ ok: true });
 }

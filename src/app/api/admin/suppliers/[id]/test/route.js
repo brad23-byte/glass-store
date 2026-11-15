@@ -5,7 +5,7 @@ import { bad, ok } from '@/lib/api';
 
 export async function POST(_req, { params }) {
   if (!(await adminOrNull())) return bad('Admin access needed', 403);
-  const s = getDb().prepare('SELECT * FROM suppliers WHERE id = ?').get(Number(params.id));
+  const s = await getDb().prepare('SELECT * FROM suppliers WHERE id = ?').get(Number(params.id));
   if (!s) return bad('Supplier not found', 404);
   try { return ok(await testSupplier(s)); } catch (e) { return bad(e.message || 'Could not connect', 502); }
 }

@@ -12,7 +12,7 @@ import { paymentMethods } from '@/lib/payments';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata() {
-  const s = getSettings();
+  const s = await getSettings();
   return { title: { default: `${s.store_name}: ${s.tagline}`, template: `%s | ${s.store_name}` }, description: s.tagline };
 }
 
@@ -20,7 +20,7 @@ const themeScript = `(function(){try{var t=localStorage.getItem('lumina_theme_v1
 
 export default async function RootLayout({ children }) {
   const session = await getSession();
-  const s = getSettings();
+  const s = await getSettings();
   const demo = paymentMethods(s).demo;
   const pub = session ? { name: session.name, role: session.role } : null;
   return (

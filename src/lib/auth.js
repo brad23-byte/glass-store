@@ -26,7 +26,7 @@ export async function getSession() {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret());
-    const row = getDb().prepare('SELECT id, name, email, role FROM users WHERE id = ?').get(Number(payload.sub));
+    const row = await getDb().prepare('SELECT id, name, email, role FROM users WHERE id = ?').get(Number(payload.sub));
     return row || null; // role is read from the database, so demoting an admin takes effect at once
   } catch {
     return null;

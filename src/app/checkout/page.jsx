@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Checkout' };
 
 export default async function Checkout({ searchParams }) {
-  const s = getSettings();
+  const s = await getSettings();
   const session = await getSession();
   const m = paymentMethods(s);
   return (

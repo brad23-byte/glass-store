@@ -14,11 +14,11 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Your order', robots: { index: false } };
 
 export default async function OrderPage({ params, searchParams }) {
-  const o = getOrderByNumber(params.number);
+  const o = await getOrderByNumber(params.number);
   const session = await getSession();
   const token = typeof searchParams.token === 'string' ? searchParams.token : '';
   if (!o || !canViewOrder(o, session, token)) notFound();
-  const s = getSettings();
+  const s = await getSettings();
   const m = paymentMethods(s);
   const a = o.ship_address;
   const justPlaced = o.status !== 'pending_payment' && Date.now() - new Date(o.created_at + 'Z').getTime() < 10 * 60 * 1000;

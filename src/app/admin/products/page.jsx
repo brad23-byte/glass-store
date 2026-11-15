@@ -7,9 +7,9 @@ import { fmt } from '@/lib/money';
 
 export const dynamic = 'force-dynamic';
 
-export default function AdminProducts() {
-  const s = getSettings();
-  const rows = getDb().prepare('SELECT p.*, su.name AS supplier_name FROM products p LEFT JOIN suppliers su ON su.id = p.supplier_id ORDER BY p.id DESC').all().map((r) => ({ ...hydrate(r), supplier_name: r.supplier_name }));
+export default async function AdminProducts() {
+  const s = await getSettings();
+  const rows = (await getDb().prepare('SELECT p.*, su.name AS supplier_name FROM products p LEFT JOIN suppliers su ON su.id = p.supplier_id ORDER BY p.id DESC').all()).map((r) => ({ ...hydrate(r), supplier_name: r.supplier_name }));
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-3xl font-extrabold text-ink sm:text-4xl">Products</h1><p className="text-muted">{rows.length} in catalogue</p></div><Link href="/admin/products/new" className="btn-primary"><Plus size={16} /> New product</Link></div>

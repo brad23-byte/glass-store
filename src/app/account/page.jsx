@@ -12,8 +12,8 @@ export const metadata = { title: 'My orders' };
 
 export default async function Account() {
   const s = await requireUser('/account');
-  const settings = getSettings();
-  const orders = listOrdersForUser(s.id);
+  const settings = await getSettings();
+  const orders = await listOrdersForUser(s.id);
   return (
     <div className="mx-auto max-w-4xl px-3 pt-8 sm:px-5 sm:pt-12">
       <h1 className="text-4xl font-extrabold text-ink sm:text-5xl">My orders</h1>

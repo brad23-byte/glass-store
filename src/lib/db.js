@@ -1,39 +1,163 @@
 import bcrypt from 'bcryptjs';
-import fs from 'fs';
-import path from 'path';
+import { createClient } from '@libsql/client/web';
 import { SEED_PRODUCTS, SHIPPING_DEFAULT, RETURNS_DEFAULT } from './seed';
 
-// Node's built-in SQLite (Node 22.5+): nothing to compile.
-function openDatabase(file) {
-  const { DatabaseSync } = process.getBuiltinModule('node:sqlite');
-  const raw = new DatabaseSync(file);
-  const plain = (r) => (r ? { ...r } : r);
+/*
+ * Database layer. Every call is async (await it).
+ *   - On Vercel (or anywhere TURSO_DATABASE_URL is set): Turso / libSQL in the cloud.
+ *   - Locally without TURSO_DATABASE_URL: a file at data/store.db using Node's built-in SQLite (Node 22.5+).
+ * Same API in both cases:  getDb().prepare(sql).get/all/run(...)   getDb().exec(sql)   getDb().batch([...])
+ * transaction(async (db) => { ... })  runs everything done through `db` atomically.
+ */
+
+const TURSO_URL = (process.env.TURSO_DATABASE_URL || '').trim();
+const REMOTE = !!TURSO_URL;
+
+const norm = (v) => (v === undefined ? null : typeof v === 'boolean' ? (v ? 1 : 0) : v);
+const isNamed = (a) => a.length === 1 && a[0] && typeof a[0] === 'object' && !Array.isArray(a[0]) && !ArrayBuffer.isView(a[0]);
+
+function rowsOf(rs) {
+  return rs.rows.map((r) => Object.fromEntries(rs.columns.map((c, i) => [c, r[i]])));
+}
+
+/* ---------------- Backends ---------------- */
+// Each backend gives: run(sql, args) -> { rows, changes, lastInsertRowid }, execMany(sql), batch(stmts), transaction(fn)
+
+function remoteBackend() {
+  if (!globalThis.__storeClient) {
+    // The web client talks HTTP, which works in serverless functions.
+    const url = TURSO_URL.replace(/^libsql:\/\//, 'https://');
+    globalThis.__storeClient = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
+  }
+  const client = globalThis.__storeClient;
+
+  const toStmt = (sql, a) => {
+    if (isNamed(a)) {
+      const args = {};
+      for (const [k, v] of Object.entries(a[0])) args[k] = norm(v);
+      return { sql: sql.replace(/@([A-Za-z_]\w*)/g, ':$1'), args };
+    }
+    return { sql, args: a.map(norm) };
+  };
+  const shape = (rs) => ({
+    rows: rowsOf(rs),
+    changes: Number(rs.rowsAffected || 0),
+    lastInsertRowid: rs.lastInsertRowid == null ? 0 : Number(rs.lastInsertRowid),
+  });
+  const runOn = (target) => async (sql, a) => shape(await target.execute(toStmt(sql, a)));
+
   return {
-    exec: (sql) => raw.exec(sql),
+    run: runOn(client),
+    execMany: (sql) => client.executeMultiple(sql),
+    batch: async (stmts) => {
+      const rs = await client.batch(stmts.map(([sql, ...a]) => toStmt(sql, a)), 'write');
+      return rs.map(shape);
+    },
+    async transaction(makeDb, fn) {
+      const tx = await client.transaction('write');
+      try {
+        const r = await fn(makeDb({
+          run: runOn(tx),
+          execMany: async (sql) => { for (const s of sql.split(';')) if (s.trim()) await tx.execute(s); },
+          batch: async (stmts) => { const out = []; for (const [sql, ...a] of stmts) out.push(shape(await tx.execute(toStmt(sql, a)))); return out; },
+        }));
+        await tx.commit();
+        return r;
+      } catch (e) {
+        try { await tx.rollback(); } catch {}
+        throw e;
+      } finally {
+        tx.close();
+      }
+    },
+  };
+}
+
+function localBackend() {
+  if (process.env.VERCEL) {
+    throw new Error('TURSO_DATABASE_URL is not set. Add TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in your Vercel project settings.');
+  }
+  if (!globalThis.__storeRaw) {
+    const fs = process.getBuiltinModule('fs');
+    const path = process.getBuiltinModule('path');
+    const { DatabaseSync } = process.getBuiltinModule('node:sqlite');
+    const dir = path.join(process.cwd(), 'data');
+    fs.mkdirSync(dir, { recursive: true });
+    const raw = new DatabaseSync(path.join(dir, 'store.db'));
+    raw.exec('PRAGMA journal_mode = WAL');
+    raw.exec('PRAGMA foreign_keys = ON');
+    globalThis.__storeRaw = raw;
+  }
+  const raw = globalThis.__storeRaw;
+  const plain = (r) => (r ? { ...r } : r);
+  const run = async (sql, a) => {
+    const st = raw.prepare(sql);
+    const args = isNamed(a) ? [Object.fromEntries(Object.entries(a[0]).map(([k, v]) => [k, norm(v)]))] : a.map(norm);
+    if (/^\s*(SELECT|WITH|PRAGMA)\b/i.test(sql)) return { rows: st.all(...args).map(plain), changes: 0, lastInsertRowid: 0 };
+    const r = st.run(...args);
+    return { rows: [], changes: Number(r.changes), lastInsertRowid: Number(r.lastInsertRowid) };
+  };
+  const batch = async (stmts) => {
+    const out = [];
+    raw.exec('BEGIN');
+    try {
+      for (const [sql, ...a] of stmts) out.push(await run(sql, a));
+      raw.exec('COMMIT');
+    } catch (e) {
+      try { raw.exec('ROLLBACK'); } catch {}
+      throw e;
+    }
+    return out;
+  };
+  // One connection is shared, so transactions take turns.
+  if (!globalThis.__storeLock) globalThis.__storeLock = Promise.resolve();
+  return {
+    run,
+    execMany: async (sql) => raw.exec(sql),
+    batch,
+    transaction(makeDb, fn) {
+      const job = globalThis.__storeLock.then(async () => {
+        raw.exec('BEGIN IMMEDIATE');
+        try {
+          const r = await fn(makeDb({ run, execMany: async (sql) => raw.exec(sql), batch: async (stmts) => { const o = []; for (const [sql, ...a] of stmts) o.push(await run(sql, a)); return o; } }));
+          raw.exec('COMMIT');
+          return r;
+        } catch (e) {
+          try { raw.exec('ROLLBACK'); } catch {}
+          throw e;
+        }
+      });
+      globalThis.__storeLock = job.catch(() => {});
+      return job;
+    },
+  };
+}
+
+function backend() {
+  if (!globalThis.__storeBackend) globalThis.__storeBackend = REMOTE ? remoteBackend() : localBackend();
+  return globalThis.__storeBackend;
+}
+
+/* ---------------- Public handle ---------------- */
+function makeDb(b, gate) {
+  const pre = gate ? () => gate() : () => undefined;
+  return {
     prepare(sql) {
-      const st = raw.prepare(sql);
       return {
-        get: (...a) => plain(st.get(...a)),
-        all: (...a) => st.all(...a).map(plain),
-        run: (...a) => {
-          const r = st.run(...a);
-          return { changes: Number(r.changes), lastInsertRowid: Number(r.lastInsertRowid) };
-        },
+        get: async (...a) => { await pre(); return (await b.run(sql, a)).rows[0]; },
+        all: async (...a) => { await pre(); return (await b.run(sql, a)).rows; },
+        run: async (...a) => { await pre(); const r = await b.run(sql, a); return { changes: r.changes, lastInsertRowid: r.lastInsertRowid }; },
       };
     },
+    exec: async (sql) => { await pre(); return b.execMany(sql); },
+    // Run several statements atomically in one round trip: batch([[sql, ...args], ...])
+    batch: async (stmts) => { await pre(); return b.batch(stmts); },
   };
 }
 
 const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
 
-function init() {
-  const dir = path.join(process.cwd(), 'data');
-  fs.mkdirSync(dir, { recursive: true });
-  const db = openDatabase(path.join(dir, 'store.db'));
-  db.exec('PRAGMA journal_mode = WAL');
-  db.exec('PRAGMA foreign_keys = ON');
-
-  db.exec(`
+const SCHEMA = `
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -165,58 +289,53 @@ function init() {
     );
     CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at);
     CREATE INDEX IF NOT EXISTS idx_items_order ON order_items(order_id);
-  `);
+  `;
 
-  if (db.prepare('SELECT COUNT(*) AS c FROM users').get().c === 0) {
-    const ins = db.prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?,?,?,?)');
-    ins.run('Store Admin', 'admin@lumina.local', bcrypt.hashSync('Admin@12345', 10), 'admin');
-    ins.run('Demo Customer', 'customer@lumina.local', bcrypt.hashSync('Customer@12345', 10), 'customer');
+async function init() {
+  const b = backend();
+  const db = makeDb(b, null);
+  await db.exec(SCHEMA);
+
+  if ((await db.prepare('SELECT COUNT(*) AS c FROM users').get()).c === 0) {
+    await db.batch([
+      ['INSERT OR IGNORE INTO users (name, email, password_hash, role) VALUES (?,?,?,?)', 'Store Admin', 'admin@lumina.local', bcrypt.hashSync('Admin@12345', 10), 'admin'],
+      ['INSERT OR IGNORE INTO users (name, email, password_hash, role) VALUES (?,?,?,?)', 'Demo Customer', 'customer@lumina.local', bcrypt.hashSync('Customer@12345', 10), 'customer'],
+    ]);
   }
 
-  if (db.prepare('SELECT COUNT(*) AS c FROM products').get().c === 0) {
-    const ins = db.prepare(`INSERT INTO products (slug, name, brand, category, short_desc, description, price, compare_at, stock, sku, images, highlights, specs, warranty, shipping_info, return_policy, weight_g, featured)
-      VALUES (@slug,@name,@brand,@category,@short,@description,@price,@compare,@stock,@sku,@images,@highlights,@specs,@warranty,@ship,@ret,@weight,@featured)`);
-    db.exec('BEGIN');
-    try {
-      SEED_PRODUCTS.forEach((p, i) => {
-        ins.run({
-          slug: slugify(p.name), name: p.name, brand: p.brand, category: p.category, short: p.short, description: p.description,
-          price: p.price * 100, compare: p.compare ? p.compare * 100 : null, stock: p.stock, sku: `LUM-${1000 + i}`,
-          images: JSON.stringify([`emoji:${p.emoji}|${p.c[0]}|${p.c[1]}`]), highlights: JSON.stringify(p.highlights), specs: JSON.stringify(p.specs),
-          warranty: p.warranty, ship: SHIPPING_DEFAULT, ret: RETURNS_DEFAULT, weight: p.weight, featured: p.featured,
-        });
-      });
-      db.prepare("INSERT INTO suppliers (name, kind, url, api_key, items_path, currency_rate, markup_pct, order_url) VALUES (?,?,?,?,?,?,?,?)").run(
-        'Demo Supplier (built-in test feed)', 'json', 'mock://demo/products', 'demo-supplier-key', 'products', 85, 35, 'mock://demo/orders' /* feed prices are USD: set the rate to today's USD to INR rate */
-      );
-      db.prepare("INSERT INTO coupons (code, kind, value, min_subtotal) VALUES ('WELCOME10','percent',10,50000)").run();
-      db.prepare("INSERT INTO coupons (code, kind, value, min_subtotal) VALUES ('FLAT200','fixed',20000,150000)").run();
-      db.exec('COMMIT');
-    } catch (e) {
-      db.exec('ROLLBACK');
-      throw e;
-    }
+  if ((await db.prepare('SELECT COUNT(*) AS c FROM products').get()).c === 0) {
+    const insSql = `INSERT OR IGNORE INTO products (slug, name, brand, category, short_desc, description, price, compare_at, stock, sku, images, highlights, specs, warranty, shipping_info, return_policy, weight_g, featured)
+      VALUES (@slug,@name,@brand,@category,@short,@description,@price,@compare,@stock,@sku,@images,@highlights,@specs,@warranty,@ship,@ret,@weight,@featured)`;
+    const stmts = SEED_PRODUCTS.map((p, i) => [insSql, {
+      slug: slugify(p.name), name: p.name, brand: p.brand, category: p.category, short: p.short, description: p.description,
+      price: p.price * 100, compare: p.compare ? p.compare * 100 : null, stock: p.stock, sku: `LUM-${1000 + i}`,
+      images: JSON.stringify([`emoji:${p.emoji}|${p.c[0]}|${p.c[1]}`]), highlights: JSON.stringify(p.highlights), specs: JSON.stringify(p.specs),
+      warranty: p.warranty, ship: SHIPPING_DEFAULT, ret: RETURNS_DEFAULT, weight: p.weight, featured: p.featured,
+    }]);
+    stmts.push(["INSERT INTO suppliers (name, kind, url, api_key, items_path, currency_rate, markup_pct, order_url) VALUES (?,?,?,?,?,?,?,?)",
+      'Demo Supplier (built-in test feed)', 'json', 'mock://demo/products', 'demo-supplier-key', 'products', 85, 35, 'mock://demo/orders']);
+    stmts.push(["INSERT OR IGNORE INTO coupons (code, kind, value, min_subtotal) VALUES ('WELCOME10','percent',10,50000)"]);
+    stmts.push(["INSERT OR IGNORE INTO coupons (code, kind, value, min_subtotal) VALUES ('FLAT200','fixed',20000,150000)"]);
+    await db.batch(stmts);
   }
-  return db;
+}
+
+// Tables and sample data are created once per server instance, before the first query.
+function ready() {
+  if (!globalThis.__storeReady) {
+    globalThis.__storeReady = init().catch((e) => { globalThis.__storeReady = null; throw e; });
+  }
+  return globalThis.__storeReady;
 }
 
 export function getDb() {
-  if (!globalThis.__storeDb) globalThis.__storeDb = init();
-  return globalThis.__storeDb;
+  return makeDb(backend(), ready);
 }
 
-// Run fn inside an immediate transaction (rolls back if it throws)
-export function transaction(fn) {
-  const db = getDb();
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    const r = fn(db);
-    db.exec('COMMIT');
-    return r;
-  } catch (e) {
-    try { db.exec('ROLLBACK'); } catch {}
-    throw e;
-  }
+// Run fn(db) atomically (rolls back if it throws). Use the `db` it receives for every query inside.
+export async function transaction(fn) {
+  await ready();
+  return backend().transaction((tb) => makeDb(tb, null), fn);
 }
 
 export { slugify };
@@ -233,8 +352,8 @@ const DEFAULT_SETTINGS = {
   support_email: 'support@lumina.local',
 };
 
-export function getSettings() {
-  const rows = getDb().prepare('SELECT key, value FROM settings').all();
+export async function getSettings(db = getDb()) {
+  const rows = await db.prepare('SELECT key, value FROM settings').all();
   const s = { ...DEFAULT_SETTINGS };
   for (const r of rows) s[r.key] = r.value;
   return {
@@ -246,9 +365,10 @@ export function getSettings() {
   };
 }
 
-export function saveSettings(patch) {
-  const up = getDb().prepare('INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value');
-  for (const [k, v] of Object.entries(patch)) if (k in DEFAULT_SETTINGS) up.run(k, String(v));
+export async function saveSettings(patch) {
+  const sql = 'INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value';
+  const stmts = Object.entries(patch).filter(([k]) => k in DEFAULT_SETTINGS).map(([k, v]) => [sql, k, String(v)]);
+  if (stmts.length) await getDb().batch(stmts);
 }
 
 export const SETTING_KEYS = Object.keys(DEFAULT_SETTINGS);

@@ -7,7 +7,7 @@ import { bad, ok } from '@/lib/api';
 export async function POST(_req, { params }) {
   const a = await adminOrNull();
   if (!a) return bad('Admin access needed', 403);
-  const o = getOrder(Number(params.id));
+  const o = await getOrder(Number(params.id));
   if (!o) return bad('Order not found', 404);
   if (o.payment_status !== 'paid') return bad('Only paid orders can be refunded', 409);
   let via = 'recorded only';
@@ -20,11 +20,11 @@ export async function POST(_req, { params }) {
     }
   }
   try {
-    if (o.status !== 'cancelled' && o.status !== 'delivered') updateOrderStatus(o.id, { status: 'cancelled' }, a.name);
-    updateOrderStatus(o.id, { status: 'refunded' }, a.name);
+    if (o.status !== 'cancelled' && o.status !== 'delivered') await updateOrderStatus(o.id, { status: 'cancelled' }, a.name);
+    await updateOrderStatus(o.id, { status: 'refunded' }, a.name);
   } catch (e) {
     return bad(e.message, 409);
   }
-  addEvent(o.id, 'Refund', via);
+  await addEvent(o.id, 'Refund', via);
   return ok({ ok: true, via });
 }
