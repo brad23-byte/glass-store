@@ -3,6 +3,7 @@ import { Download, Search } from 'lucide-react';
 import { listOrdersAdmin } from '@/lib/orders';
 import { getSettings } from '@/lib/db';
 import { StatusChip } from '@/components/OrderBits';
+import QuickComplete from '@/components/QuickComplete';
 import { PAY } from '@/lib/status';
 import { fmt } from '@/lib/money';
 
@@ -34,8 +35,8 @@ export default async function AdminOrders({ searchParams }) {
 
       <section className="glass overflow-hidden !rounded-3xl">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-muted"><tr>{['Order', 'Date', 'Customer', 'Items', 'Total', 'Payment', 'Status'].map((h) => <th key={h} className="px-5 py-4 font-semibold">{h}</th>)}</tr></thead>
+          <table className="w-full min-w-[960px] text-left text-sm">
+            <thead className="text-xs uppercase tracking-wide text-muted"><tr>{['Order', 'Date', 'Customer', 'Items', 'Total', 'Payment', 'Status', 'Action'].map((h) => <th key={h} className="px-5 py-4 font-semibold">{h}</th>)}</tr></thead>
             <tbody className="divide-y divide-tint/10">
               {items.map((o) => (
                 <tr key={o.id} className="transition hover:bg-tint/5">
@@ -46,9 +47,10 @@ export default async function AdminOrders({ searchParams }) {
                   <td className="px-5 py-4 font-bold text-ink">{fmt(o.total, s.currency_symbol)}</td>
                   <td className="px-5 py-4"><span className={`chip ${payTone[o.payment_status] || ''}`}>{PAY[o.payment_status] || o.payment_status}</span></td>
                   <td className="px-5 py-4"><StatusChip status={o.status} /></td>
+                  <td className="px-5 py-4">{o.payment_status === 'cod' && ['processing', 'shipped'].includes(o.status) ? <QuickComplete orderId={o.id} number={o.number} /> : <span className="text-xs text-muted">{o.status === 'delivered' ? 'Completed' : '-'}</span>}</td>
                 </tr>
               ))}
-              {items.length === 0 && <tr><td colSpan={7} className="px-5 py-16 text-center text-muted">No orders match.</td></tr>}
+              {items.length === 0 && <tr><td colSpan={8} className="px-5 py-16 text-center text-muted">No orders match.</td></tr>}
             </tbody>
           </table>
         </div>
