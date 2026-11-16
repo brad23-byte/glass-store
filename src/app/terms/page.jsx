@@ -17,7 +17,7 @@ export default async function Page() {
     ]],
     ['3. Orders and payment', [
       'Your order is placed when you complete checkout. It is confirmed once payment succeeds, or straight away for cash on delivery.',
-      'Card and UPI details are handled by the payment provider and are never stored on this site. While the store is in test mode, no real money is charged.',
+      'Card and UPI details are handled by the payment provider and are never stored on this site.',
     ]],
     ['4. Cancellations, returns and refunds', [
       'You can ask us to cancel an order before it ships. Returns and refunds follow our Returns page.',
@@ -35,7 +35,6 @@ export default async function Page() {
       title="Terms of Service"
       updated="16 November 2026"
       storeName={s.store_name}
-      intro="This store is a student project. These terms describe how it is designed to work."
       sections={sections}
     />
   );

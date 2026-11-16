@@ -342,7 +342,7 @@ export { slugify };
 
 /* ---------------- Settings ---------------- */
 const DEFAULT_SETTINGS = {
-  store_name: 'Lumina',
+  store_name: 'MAGSON',
   tagline: 'Thoughtfully chosen goods, delivered.',
   currency_symbol: '₹',
   shipping_fee: '4900',

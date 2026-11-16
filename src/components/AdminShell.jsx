@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { LayoutDashboard, ShoppingCart, Package, Truck, Settings, Store, LogOut, Menu, X, Sun, Moon, Sparkles } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, Truck, Settings, Store, LogOut, Menu, X, Sun, Moon } from 'lucide-react';
+import { LogoMark } from './Logo';
 import { useTheme } from './Providers';
 
 const NAV = [
@@ -40,7 +41,7 @@ export default function AdminShell({ session, storeName, badge, children }) {
   return (
     <div className="min-h-screen lg:pl-72">
       <aside className={`glass glass-strong fixed bottom-3 left-3 top-3 z-50 flex w-64 flex-col !rounded-[2rem] transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-[110%]'} lg:translate-x-0`}>
-        <div className="flex items-center gap-2.5 px-5 pb-2 pt-5"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-accent to-accent2 text-onaccent"><Sparkles size={17} /></span><div><p className="font-extrabold leading-tight text-ink">{storeName}</p><p className="text-xs text-muted">Admin</p></div></div>
+        <div className="flex items-center gap-2.5 px-5 pb-2 pt-5"><LogoMark size={38} id="adm" /><div><p className="font-extrabold leading-tight text-ink">{storeName}</p><p className="text-xs text-muted">Admin</p></div></div>
         {nav}
         <div className="space-y-1 border-t border-tint/15 p-3">
           <Link href="/" className="flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-medium text-ink2 hover:bg-tint/10"><Store size={17} /> View store</Link>

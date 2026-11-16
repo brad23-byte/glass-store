@@ -109,7 +109,7 @@ export async function createOrder({ items, coupon, method, customer, userId }) {
       cod ? 'processing' : 'pending_payment', cod ? 'cod' : 'unpaid', method
     );
     const id = ins.lastInsertRowid;
-    const number = `LUM-${10000 + id}`;
+    const number = `MAG-${10000 + id}`;
     await db.prepare('UPDATE orders SET number = ? WHERE id = ?').run(number, id);
 
     const insItem = db.prepare(`INSERT INTO order_items (order_id, product_id, name, sku, image, unit_price, qty, line_total, supplier_id, supplier_sku, unit_cost, fulfilment)

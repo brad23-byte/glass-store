@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Search, ShoppingBag, Sun, Moon, User, LogOut, LayoutDashboard, Package, Sparkles } from 'lucide-react';
+import { Search, ShoppingBag, Sun, Moon, User, LogOut, LayoutDashboard, Package } from 'lucide-react';
+import Logo from './Logo';
 import { useCart, useTheme } from './Providers';
 
 export default function SiteHeader({ storeName, session }) {
@@ -31,8 +32,7 @@ export default function SiteHeader({ storeName, session }) {
     <header className="sticky top-3 z-40 px-3 sm:px-5">
       <div className="glass glass-strong mx-auto flex max-w-6xl items-center gap-2 !rounded-full py-2 pl-4 pr-2 sm:gap-3">
         <Link href="/" className="flex items-center gap-2 pr-1 text-ink" aria-label={`${storeName} home`}>
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-accent to-accent2 text-onaccent"><Sparkles size={16} /></span>
-          <span className="hidden text-base font-bold tracking-tight sm:block">{storeName}</span>
+          <Logo name={storeName} size={34} id="hdr" hideNameOnMobile />
         </Link>
         <nav className="ml-1 hidden items-center md:flex" aria-label="Main">{link('/shop', 'Shop')}{link('/shop?sort=newest', 'New')}{link('/shop?sort=price-asc', 'Deals')}</nav>
 

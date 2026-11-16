@@ -1,10 +1,13 @@
 import Link from 'next/link';
 import { ShieldCheck, Truck, RotateCcw, Headphones } from 'lucide-react';
+import Logo from './Logo';
+import FooterReviews from './FooterReviews';
 
 export default function SiteFooter({ storeName, tagline, email, demo }) {
   return (
     <footer className="mx-auto mt-24 max-w-6xl px-3 pb-32 sm:px-5 md:pb-10">
       <div className="glass !rounded-[2rem] p-6 sm:p-10">
+        <FooterReviews />
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[[Truck, 'Fast delivery', 'Dispatched in 1 to 2 business days'], [RotateCcw, 'Easy returns', '7-day returns on unused items'], [ShieldCheck, 'Secure checkout', 'Encrypted payments, no card data stored'], [Headphones, 'Real support', email]].map(([Icon, t, d]) => (
             <div key={t} className="flex gap-3">
@@ -14,10 +17,10 @@ export default function SiteFooter({ storeName, tagline, email, demo }) {
           ))}
         </div>
         <div className="mt-8 flex flex-col items-start justify-between gap-3 border-t border-tint/15 pt-6 text-sm text-muted sm:flex-row sm:items-center">
-          <p><b className="text-ink">{storeName}</b> · {tagline}</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2"><Logo name={storeName} size={34} id="ftr" /><span>{tagline}</span></div>
           <div className="flex flex-wrap gap-x-4 gap-y-1"><Link href="/shop" className="hover:text-ink">Shop</Link><Link href="/account" className="hover:text-ink">My orders</Link><Link href="/login" className="hover:text-ink">Sign in</Link><Link href="/terms" className="hover:text-ink">Terms</Link><Link href="/privacy" className="hover:text-ink">Privacy</Link><Link href="/shipping" className="hover:text-ink">Shipping</Link><Link href="/returns" className="hover:text-ink">Returns</Link></div>
         </div>
-        {demo && <p className="mt-4 rounded-2xl bg-warn/10 px-4 py-2 text-xs text-warn">Student project: payments run in test mode. Nothing real is charged or shipped.</p>}
+        {demo && <p className="mt-4 rounded-2xl bg-warn/10 px-4 py-2 text-xs text-warn">Payment test mode is on: card payments are not real and will not be charged.</p>}
       </div>
     </footer>
   );

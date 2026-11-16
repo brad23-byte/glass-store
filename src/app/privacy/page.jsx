@@ -33,7 +33,6 @@ export default async function Page() {
       title="Privacy Policy"
       updated="16 November 2026"
       storeName={s.store_name}
-      intro="This store is a student project. Please do not enter sensitive personal information you would not want stored."
       sections={sections}
     />
   );

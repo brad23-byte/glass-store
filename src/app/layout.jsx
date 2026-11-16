@@ -22,8 +22,8 @@ const themeScript = `(function(){try{var t=localStorage.getItem('lumina_theme_v1
 export default async function RootLayout({ children }) {
   const session = await getSession();
   const s = await getSettings();
-  // Show the project notice until live payment keys are in use.
-  const notice = !String(paymentMethods(s).keyId || '').startsWith('rzp_live_');
+  // The notice appears only while the test-card option is on, so shoppers are never told a fake payment is real.
+  const notice = paymentMethods(s).demo;
   const pub = session ? { name: session.name, role: session.role } : null;
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>

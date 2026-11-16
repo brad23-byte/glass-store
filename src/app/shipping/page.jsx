@@ -27,7 +27,6 @@ export default async function Page() {
       title="Shipping Policy"
       updated="16 November 2026"
       storeName={s.store_name}
-      intro="This store is a student project. This page describes how shipping is designed to work."
       sections={sections}
     />
   );

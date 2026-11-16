@@ -92,3 +92,18 @@ export async function hasPurchased(userId, productId) {
     .prepare("SELECT 1 AS x FROM order_items i JOIN orders o ON o.id = i.order_id WHERE o.user_id = ? AND i.product_id = ? AND o.status IN ('processing','shipped','delivered') LIMIT 1")
     .get(userId, productId);
 }
+
+// Newest customer reviews across the store (first names only), plus the overall average.
+export async function latestReviews(limit = 3) {
+  const db = getDb();
+  const rows = await db.prepare(`SELECT r.id, r.rating, r.title, r.body, u.name AS author, p.name AS product, p.slug
+    FROM reviews r JOIN users u ON u.id = r.user_id JOIN products p ON p.id = r.product_id
+    WHERE p.is_active = 1 AND (LENGTH(TRIM(r.body)) > 0 OR LENGTH(TRIM(r.title)) > 0)
+    ORDER BY r.id DESC LIMIT ?`).all(limit);
+  const st = await db.prepare('SELECT COUNT(*) AS n, AVG(rating) AS a FROM reviews').get();
+  return {
+    items: rows.map((r) => ({ ...r, author: String(r.author || 'Customer').trim().split(/\s+/)[0] })),
+    count: st.n,
+    avg: st.n ? Math.round(st.a * 10) / 10 : 0,
+  };
+}

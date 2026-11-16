@@ -26,7 +26,6 @@ export default async function Page() {
       title="Returns and Refunds"
       updated="16 November 2026"
       storeName={s.store_name}
-      intro="This store is a student project. This page describes how returns are designed to work."
       sections={sections}
     />
   );
