@@ -35,6 +35,21 @@ export default function OrderActions({ order, supplierGroups }) {
     <div className="space-y-5">
       <section className="glass !rounded-3xl p-6">
         <h3 className="mb-3 text-lg font-bold text-ink">Fulfilment</h3>
+        {order.payment_status === 'cod' && ['processing', 'shipped'].includes(order.status) && (
+          <div className="mb-4 rounded-2xl bg-ok/10 p-4">
+            <p className="text-sm text-ink2">Cash on delivery. Press the button only after the customer has received the order and you have collected the cash.</p>
+            <button
+              disabled={!!busy}
+              className="btn-primary mt-3 w-full justify-center !py-3 text-base"
+              onClick={() => {
+                if (!confirm('Confirm: the customer received the order and you collected the cash? This completes the sale and cannot be undone.')) return;
+                run('delivered', () => call(`/api/admin/orders/${order.id}`, 'PATCH', { status: 'delivered', tracking_number: track.number, tracking_url: track.url }), 'Sale completed');
+              }}
+            >
+              {busy === 'delivered' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} Cash received · Complete sale
+            </button>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {next.filter((s) => s !== 'refunded' || order.payment_status !== 'paid').map((s) => {
             const Icon = ICON[s];
