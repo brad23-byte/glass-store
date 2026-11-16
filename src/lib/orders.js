@@ -173,7 +173,7 @@ export async function releaseExpired() {
 
 /* ---------------- Admin status changes ---------------- */
 const NEXT = {
-  processing: ['shipped', 'cancelled'],
+  processing: ['shipped', 'delivered', 'cancelled'],
   shipped: ['delivered', 'cancelled'],
   delivered: ['refunded'],
   pending_payment: ['cancelled'],

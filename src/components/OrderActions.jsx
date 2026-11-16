@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Loader2, Truck, CheckCircle2, XCircle, RotateCcw, Send, ClipboardCheck } from 'lucide-react';
 import { useToast } from './Providers';
 
-const NEXT = { processing: ['shipped', 'cancelled'], shipped: ['delivered', 'cancelled'], delivered: ['refunded'], pending_payment: ['cancelled'], cancelled: ['refunded'], refunded: [] };
+const NEXT = { processing: ['shipped', 'delivered', 'cancelled'], shipped: ['delivered', 'cancelled'], delivered: ['refunded'], pending_payment: ['cancelled'], cancelled: ['refunded'], refunded: [] };
 const LABEL = { shipped: 'Mark as shipped', delivered: 'Mark as delivered', cancelled: 'Cancel order', refunded: 'Mark as refunded' };
 const ICON = { shipped: Truck, delivered: CheckCircle2, cancelled: XCircle, refunded: RotateCcw };
 
@@ -40,7 +40,7 @@ export default function OrderActions({ order, supplierGroups }) {
             const Icon = ICON[s];
             return (
               <button key={s} disabled={!!busy} className={s === 'cancelled' ? 'btn-danger' : 'btn-primary'}
-                onClick={() => { if (s === 'cancelled' && !confirm('Cancel this order? Stock will be returned.')) return; run(s, () => call(`/api/admin/orders/${order.id}`, 'PATCH', { status: s, tracking_number: track.number, tracking_url: track.url }), `Order ${s}`); }}>
+                onClick={() => { if (s === 'cancelled' && !confirm('Cancel this order? Stock will be returned.')) return; if (s === 'delivered' && !confirm(order.payment_status === 'cod' ? 'Mark as delivered? Only continue if the customer has received the order and you have collected the cash.' : 'Mark this order as delivered?')) return; run(s, () => call(`/api/admin/orders/${order.id}`, 'PATCH', { status: s, tracking_number: track.number, tracking_url: track.url }), `Order ${s}`); }}>
                 {busy === s ? <Loader2 size={15} className="animate-spin" /> : <Icon size={15} />} {LABEL[s]}
               </button>
             );
